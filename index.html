@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ecoMART</title>
+  <script src="https://unpkg.com/vue@2.7.8/dist/vue.js"></script>
+  <!-- REMOVED: products.js import - we now fetch from backend! -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
+    .top-bar { position: fixed; top:0; left:0; right:0; height:60px; background-color:#ccc; opacity: 0.8; color:white; display:flex; align-items:center; justify-content:space-between; padding:0 20px; z-index:100; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+    .logo { height:100px;  }
+    .top-bar-buttons { display: flex; gap: 10px; }
+    .cart-button, .orders-button { background-color:white; color:#2d6a2d; border:none; padding:0.5rem 1rem; border-radius:8px; cursor:pointer; font-weight: bold; transition: background-color 0.3s; }
+    .cart-button:hover, .orders-button:hover { background-color: #f0f0f0; }
+    .store-container { display:flex; margin-top:70px; padding:20px; }
+    .sidebar { width:250px; margin-right:20px; background-color: #f9f9f9; padding: 15px; border-radius: 8px; }
+    .sidebar h3 { margin-top: 0; color: #2d6a2d; }
+    .sidebar input, .sidebar select, .sidebar button { width:100%; padding:0.5rem; margin-bottom:10px; border-radius:5px; border:1px solid #ccc; box-sizing: border-box; }
+    .sidebar button { background-color: #2d6a2d; color: white; cursor: pointer; border: none; transition: background-color 0.3s; }
+    .sidebar button:hover { background-color: #1e4d1e; }
+    .products-grid { display:flex; flex-wrap:wrap; gap:20px; flex:1; }
+    .product-card { background-color:#fff; width:calc(25% - 20px); padding:15px; border-radius:8px; text-align:center; box-shadow: 0 2px 5px rgba(0,0,0,0.1); transition: transform 0.3s; }
+    .product-card:hover { transform: translateY(-5px); box-shadow: 0 4px 10px rgba(0,0,0,0.15); }
+    .product-card img { max-width:100%; height:150px; object-fit:cover; margin-bottom:10px; border-radius: 5px; }
+    .product-card h4 { color: #2d6a2d; margin: 10px 0; }
+    .product-card button { background-color: #2d6a2d; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; transition: background-color 0.3s; }
+    .product-card button:hover { background-color: #1e4d1e; }
+    .product-card button:disabled { background-color:#ccc; cursor:not-allowed; }
+    
+    @media(max-width:768px){ 
+      .product-card{ width:calc(50% - 20px);} 
+      .store-container{flex-direction:column;} 
+      .sidebar{width:100%; margin-bottom:20px; margin-right: 0;} 
+    }
+    @media(max-width:480px){ 
+      .product-card{ width:100%; } 
+    }
+    
+    .container { display:flex; flex-direction:column; justify-content:center; align-items:center; min-height:100vh; text-align:center; background-color:#f5f5f5; color:#2d6a2d; padding: 20px; box-sizing: border-box; }
+    .container h1 { font-size: 2.5rem; margin-bottom: 10px; }
+    .container p { font-size: 1.2rem; margin-bottom: 20px; }
+    .btn-primary { padding:15px 30px; font-size:1.2rem; border:none; border-radius:10px; background-color:#2d6a2d; color:white; cursor:pointer; transition: background-color 0.3s; }
+    .btn-primary:hover { background-color:#1e4d1e; }
+    .btn-secondary { padding:10px 20px; font-size:1rem; border:none; border-radius:8px; background-color:#666; color:white; cursor:pointer; margin: 5px; transition: background-color 0.3s; }
+    .btn-secondary:hover { background-color:#555; }
+    .btn-danger { background-color:darkred; }
+    .btn-danger:hover { background-color:#8B0000; }
+    
+    .checkout-form { max-width:400px; width: 100%; margin-top:20px; padding:20px; border-radius:10px; border:1px solid #ccc; background-color: white; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+    .checkout-form h3 { margin-top: 0; color: #2d6a2d; }
+    .checkout-form input, .checkout-form select { width:100%; padding:10px; margin-bottom:12px; border-radius:5px; border:1px solid #ccc; box-sizing: border-box; }
+    .checkout-form button { width: 100%; padding:12px 16px; background-color:#2d6a2d; color:white; border:none; border-radius:8px; cursor:pointer; font-size: 1rem; transition: background-color 0.3s; }
+    .checkout-form button:hover { background-color:#1e4d1e; }
+    .checkout-form .error { color: red; font-size: 0.9rem; margin-top: -8px; margin-bottom: 10px; }
+    
+    .cart-item, .order-item { border:1px solid #ddd; padding:15px; border-radius:8px; margin-bottom:15px; display:flex; justify-content:space-between; align-items:center; background-color: white; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+    .cart-item-details, .order-item-details { text-align: left; flex: 1; }
+    .cart-item-details strong, .order-item-details strong { color: #2d6a2d; font-size: 1.1rem; }
+    
+    .quantity-controls { display: flex; align-items: center; gap: 10px; }
+    .quantity-btn { background-color: #2d6a2d; color: white; border: none; width: 30px; height: 30px; border-radius: 5px; cursor: pointer; font-size: 1.2rem; transition: background-color 0.3s; display: flex; align-items: center; justify-content: center; }
+    .quantity-btn:hover { background-color: #1e4d1e; }
+    .quantity-btn:disabled { background-color: #ccc; cursor: not-allowed; }
+    .quantity-display { font-weight: bold; min-width: 30px; text-align: center; }
+    
+    .btn-remove { background-color:red; color:white; border:none; border-radius:5px; padding:8px 15px; cursor:pointer; transition: background-color 0.3s; margin-left: 10px; }
+    .btn-remove:hover { background-color:#cc0000; }
+    
+    .order-summary { background-color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); max-width: 600px; width: 100%; }
+    .order-summary h3 { color: #2d6a2d; margin-top: 0; }
+    .order-summary p { text-align: left; margin: 10px 0; }
+    
+    .orders-list { max-width: 800px; width: 100%; }
+    .single-order { background-color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+    .single-order h3 { color: #2d6a2d; margin-top: 0; border-bottom: 2px solid #2d6a2d; padding-bottom: 10px; }
+    
+    .loading { text-align: center; padding: 40px; font-size: 1.2rem; color: #2d6a2d; }
+  </style>
+</head>
+<body>
+
+<div id="app">
+  <!-- Landing Page -->
+  <div v-if="currentPage==='landing'" class="container">
+    <img src="images/logo.png" alt="ecoMART Logo" style="height: 200px; margin-bottom: 20px;">
+    <h1>Welcome to ecoMART!</h1>
+    <p>Your one-stop solution for after-school activities designed specifically for students.</p>
+    <button v-on:click="currentPage='store'" class="btn-primary">Visit Store</button>
+  </div>
+
+  <!-- Store Page -->
+  <div v-if="currentPage==='store'">
+    <header class="top-bar">
+      <img src="images/logo.png" alt="ecoMART Logo" class="logo">
+      <div class="top-bar-buttons">
+        <button v-on:click="currentPage='orders'" class="orders-button">
+          <i class="fa-solid fa-receipt"></i> Orders
+        </button>
+        <button v-on:click="currentPage='cart'" v-show="cartItemCount>0" class="cart-button">
+          <i class="fa-solid fa-cart-shopping"></i> Cart ({{ cartItemCount }})
+        </button>
+      </div>
+    </header>
+    <div class="store-container">
+      <aside class="sidebar">
+        <h3>Search & Sort</h3>
+        <input type="text" placeholder="Search activities..." v-model="searchQuery" v-on:input="handleSearchInput">
+        <label>Sort by:</label>
+        <select v-model="sortKey">
+          <option value="">None</option>
+          <option value="subject">Subject</option>
+          <option value="location">Location</option>
+          <option value="price">Price</option>
+          <option value="spaces">Spaces</option>
+        </select>
+        <button v-on:click="toggleSortOrder">Order: {{ sortOrder }}</button>
+      </aside>
+      <main class="products-grid">
+        <div v-if="loading" class="loading">Loading lessons...</div>
+        <div v-else-if="products.length === 0" class="loading">No lessons available</div>
+        <div v-else class="product-card" v-for="product in filteredAndSortedProducts" v-bind:key="product._id">
+          <img v-bind:src="product.image" v-bind:alt="product.subject">
+          <h4>{{ product.subject }}</h4>
+          <p>Location: {{ product.location }}</p>
+          <p>Price: ${{ product.price }}</p>
+          <p>Spaces: {{ product.spaces }}</p>
+          <button v-on:click="addToCart(product)" v-bind:disabled="product.spaces===0">
+            {{ product.spaces===0 ? 'Sold Out' : 'Add to Cart' }}
+          </button>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- Cart Page -->
+  <div v-if="currentPage==='cart'" class="container">
+    <h1>Your Cart</h1>
+    <div v-if="cart.length===0">
+      <p>No items in your cart.</p>
+      <button v-on:click="currentPage='store'" class="btn-primary">Back to Store</button>
+    </div>
+    <div v-else style="max-width: 800px; width: 100%;">
+      <div class="cart-item" v-for="(item,index) in cart" v-bind:key="index">
+        <div class="cart-item-details">
+          <strong>{{ item.subject }}</strong><br>
+          Location: {{ item.location }}<br>
+          Price: ${{ item.price }} × {{ item.quantity }} = ${{ item.price * item.quantity }}
+        </div>
+        <div style="display: flex; align-items: center;">
+          <div class="quantity-controls">
+            <button class="quantity-btn" v-on:click="decreaseQuantity(index)" v-bind:disabled="item.quantity <= 1">-</button>
+            <span class="quantity-display">{{ item.quantity }}</span>
+            <button class="quantity-btn" v-on:click="increaseQuantity(index)" v-bind:disabled="!canIncreaseQuantity(item._id)">+</button>
+          </div>
+          <button v-on:click="removeFromCart(index)" class="btn-remove">Remove</button>
+        </div>
+      </div>
+
+      <h2 style="margin: 20px 0;">Total: ${{ totalPrice }}</h2>
+
+      <button v-on:click="currentPage='store'" class="btn-secondary">Continue Shopping</button>
+      
+      <button v-on:click="clearCart" class="btn-secondary btn-danger">
+        Delete All Items
+      </button>
+
+      <!-- Checkout Form -->
+      <div class="checkout-form">
+        <h3>Checkout</h3>
+        <input type="text" placeholder="Your Full Name" v-model="name">
+        <div v-if="formErrors.name" class="error">{{ formErrors.name }}</div>
+        
+        <input type="text" placeholder="Phone Number" v-model="phone">
+        <div v-if="formErrors.phone" class="error">{{ formErrors.phone }}</div>
+        
+        <select v-model="payment">
+          <option disabled value="">Select Payment Method</option>
+          <option>Credit Card</option>
+          <option>Cash</option>
+          <option>Bank Transfer</option>
+        </select>
+        <div v-if="formErrors.payment" class="error">{{ formErrors.payment }}</div>
+        
+        <button v-on:click="completeOrder" v-bind:disabled="submittingOrder">
+          {{ submittingOrder ? 'Processing...' : 'Complete Order' }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Orders Page -->
+  <div v-if="currentPage==='orders'" class="container">
+    <h1>Your Orders</h1>
+
+    <div v-if="orders.length===0">
+      <p>No orders found.</p>
+      <button v-on:click="currentPage='store'" class="btn-primary">Back to Store</button>
+    </div>
+
+    <div v-else class="orders-list">
+      <div class="single-order" v-for="(order, orderIndex) in orders" v-bind:key="orderIndex">
+        <h3>Order #{{ orders.length - orderIndex }}</h3>
+        <p><strong>Name:</strong> {{ order.name }}</p>
+        <p><strong>Phone:</strong> {{ order.phone }}</p>
+        <p><strong>Payment Method:</strong> {{ order.payment }}</p>
+        <p><strong>Date:</strong> {{ order.date }}</p>
+        <p><strong>Total:</strong> ${{ order.total }}</p>
+
+        <h4 style="color: #2d6a2d; margin-top: 15px;">Items:</h4>
+        <div class="order-item" v-for="(item,index) in order.items" v-bind:key="index">
+          <div class="order-item-details">
+            <strong>{{ item.subject }}</strong><br>
+            Location: {{ item.location }}<br>
+            Price: ${{ item.price }} × {{ item.quantity }} = ${{ item.price * item.quantity }}
+          </div>
+        </div>
+      </div>
+
+      <button v-on:click="currentPage='store'" class="btn-primary">Back to Store</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+new Vue({
+  el:'#app',
+  data:{
+    currentPage:'landing',
+    products:[], // Now fetched from backend!
+    cart:[],
+    searchQuery:'',
+    sortKey:'',
+    sortOrder:'asc',
+    name:'',
+    phone:'',
+    payment:'',
+    orders:[],
+    formErrors:{
+      name:'',
+      phone:'',
+      payment:''
+    },
+    loading: false,
+    submittingOrder: false,
+    apiUrl: 'http://localhost:3000/api', // Backend API URL
+    searchTimeout: null, // For debouncing search
+    isSearching: false // Track if currently searching backend
+  },
+  mounted(){
+    // Fetch lessons from backend
+    this.fetchLessons();
+    
+    // Load cart from localStorage (cart stays local for now)
+    const savedCart = localStorage.getItem('cart');
+    if(savedCart){ 
+      this.cart = JSON.parse(savedCart);
+    }
+
+    // Load orders from localStorage (will be replaced with backend later)
+    const savedOrders = localStorage.getItem('orders');
+    if(savedOrders){ 
+      this.orders = JSON.parse(savedOrders); 
+    }
+  },
+  methods:{
+    // FETCH LESSONS FROM BACKEND
+    async fetchLessons(){
+      this.loading = true;
+      try {
+        const response = await fetch(`${this.apiUrl}/lessons`);
+        if(!response.ok) throw new Error('Failed to fetch lessons');
+        this.products = await response.json();
+        console.log('✅ Lessons loaded from backend:', this.products.length);
+      } catch(error) {
+        console.error('❌ Error fetching lessons:', error);
+        alert('Failed to load lessons. Make sure backend is running!');
+      } finally {
+        this.loading = false;
+      }
+    },
+    
+    // SEARCH LESSONS IN BACKEND (with "search as you type")
+    async searchLessons(query){
+      if(!query || query.trim() === ''){
+        // If search is empty, reload all lessons
+        await this.fetchLessons();
+        return;
+      }
+      
+      this.isSearching = true;
+      try {
+        const response = await fetch(`${this.apiUrl}/search?q=${encodeURIComponent(query)}`);
+        if(!response.ok) throw new Error('Failed to search lessons');
+        const data = await response.json();
+        this.products = data.results;
+        console.log(`🔍 Search "${query}" - Found ${data.count} results`);
+      } catch(error) {
+        console.error('❌ Error searching lessons:', error);
+      } finally {
+        this.isSearching = false;
+      }
+    },
+    
+    // Handle search input with debouncing (wait 300ms after user stops typing)
+    handleSearchInput(){
+      clearTimeout(this.searchTimeout);
+      this.searchTimeout = setTimeout(() => {
+        this.searchLessons(this.searchQuery);
+      }, 300); // 300ms delay = "search as you type" effect
+    },
+    
+    // UPDATE LESSON SPACES IN BACKEND
+    async updateLessonSpaces(lessonId, newSpaces){
+      try {
+        const response = await fetch(`${this.apiUrl}/lessons/${lessonId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ spaces: newSpaces })
+        });
+        
+        if(!response.ok) throw new Error('Failed to update lesson spaces');
+        console.log('✅ Lesson spaces updated in backend');
+      } catch(error) {
+        console.error('❌ Error updating lesson spaces:', error);
+      }
+    },
+    
+    // SAVE ORDER TO BACKEND
+    async saveOrderToBackend(order){
+      try {
+        const response = await fetch(`${this.apiUrl}/orders`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(order)
+        });
+        
+        if(!response.ok) throw new Error('Failed to save order');
+        const result = await response.json();
+        console.log('✅ Order saved to backend:', result);
+        return result;
+      } catch(error) {
+        console.error('❌ Error saving order:', error);
+        throw error;
+      }
+    },
+    
+    addToCart(product){
+      if(product.spaces > 0){
+        const existingItem = this.cart.find(item => item._id === product._id);
+        
+        if(existingItem){
+          existingItem.quantity += 1;
+        } else {
+          this.cart.push({
+            _id: product._id,
+            subject: product.subject,
+            location: product.location,
+            price: product.price,
+            image: product.image,
+            quantity: 1
+          });
+        }
+        
+        product.spaces -= 1;
+        localStorage.setItem('cart', JSON.stringify(this.cart));
+      }
+    },
+    
+    increaseQuantity(index){
+      const cartItem = this.cart[index];
+      const product = this.products.find(p => p._id === cartItem._id);
+      
+      if(product && product.spaces > 0){
+        cartItem.quantity += 1;
+        product.spaces -= 1;
+        localStorage.setItem('cart', JSON.stringify(this.cart));
+      }
+    },
+    
+    decreaseQuantity(index){
+      const cartItem = this.cart[index];
+      
+      if(cartItem.quantity > 1){
+        cartItem.quantity -= 1;
+        
+        const product = this.products.find(p => p._id === cartItem._id);
+        if(product){
+          product.spaces += 1;
+        }
+        
+        localStorage.setItem('cart', JSON.stringify(this.cart));
+      }
+    },
+    
+    canIncreaseQuantity(productId){
+      const product = this.products.find(p => p._id === productId);
+      return product && product.spaces > 0;
+    },
+    
+    removeFromCart(index){
+      const removed = this.cart.splice(index, 1)[0];
+      
+      const product = this.products.find(p => p._id === removed._id);
+      if(product){
+        product.spaces += removed.quantity;
+      }
+      
+      localStorage.setItem('cart', JSON.stringify(this.cart));
+    },
+
+    clearCart(){
+      this.cart.forEach(item => {
+        const product = this.products.find(p => p._id === item._id);
+        if(product){
+          product.spaces += item.quantity;
+        }
+      });
+      this.cart = [];
+      localStorage.removeItem('cart');
+    },
+    
+    toggleSortOrder(){ 
+      this.sortOrder = this.sortOrder==='asc'?'desc':'asc'; 
+    },
+    
+    validateForm(){
+      this.formErrors = { name:'', phone:'', payment:'' };
+      let isValid = true;
+
+      if(!this.name || this.name.trim().length < 2){
+        this.formErrors.name = 'Please enter a valid name (at least 2 characters)';
+        isValid = false;
+      }
+
+      const phoneRegex = /^[0-9]{10,15}$/;
+      if(!this.phone || !phoneRegex.test(this.phone.replace(/[\s\-()]/g, ''))){
+        this.formErrors.phone = 'Please enter a valid phone number (10-15 digits)';
+        isValid = false;
+      }
+
+      if(!this.payment){
+        this.formErrors.payment = 'Please select a payment method';
+        isValid = false;
+      }
+
+      return isValid;
+    },
+    
+    async completeOrder(){
+      if(!this.validateForm()){ 
+        return; 
+      }
+      
+      this.submittingOrder = true;
+      
+      try {
+        // Prepare order data for backend
+        const orderData = { 
+          name: this.name, 
+          phone: this.phone, 
+          payment: this.payment, 
+          date: new Date().toLocaleString(),
+          total: this.totalPrice,
+          items: this.cart.map(item => ({
+            lessonId: item._id,
+            subject: item.subject,
+            location: item.location,
+            price: item.price,
+            quantity: item.quantity
+          }))
+        };
+        
+        // Save order to backend
+        await this.saveOrderToBackend(orderData);
+        
+        // Update lesson spaces in backend for each cart item
+        for(const item of this.cart){
+          const product = this.products.find(p => p._id === item._id);
+          if(product){
+            await this.updateLessonSpaces(item._id, product.spaces);
+          }
+        }
+        
+        // Save order to localStorage (for frontend display)
+        this.orders.push(orderData);
+        localStorage.setItem('orders', JSON.stringify(this.orders));
+        
+        // Clear cart
+        this.cart = [];
+        localStorage.removeItem('cart');
+        this.name = '';
+        this.phone = '';
+        this.payment = '';
+        this.formErrors = { name:'', phone:'', payment:'' };
+        
+        alert('Order Submitted Successfully!');
+        this.currentPage = 'store';
+        
+      } catch(error) {
+        alert('Failed to submit order. Please try again.');
+      } finally {
+        this.submittingOrder = false;
+      }
+    }
+  },
+  computed:{
+    filteredAndSortedProducts(){
+      // Sorting only (filtering is now done by backend search)
+      let filtered = [...this.products];
+      
+      if(this.sortKey){
+        filtered.sort((a,b)=>{
+          let valA = a[this.sortKey];
+          let valB = b[this.sortKey];
+          if(typeof valA==='string'){ valA=valA.toLowerCase(); valB=valB.toLowerCase(); }
+          if(valA<valB) return this.sortOrder==='asc'?-1:1;
+          if(valA>valB) return this.sortOrder==='asc'?1:-1;
+          return 0;
+        });
+      }
+      return filtered;
+    },
+    totalPrice(){ 
+      return this.cart.reduce((sum, item) => sum + (item.price * item.quantity), 0); 
+    },
+    cartItemCount(){
+      return this.cart.reduce((sum, item) => sum + item.quantity, 0);
+    }
+  }
+})
+</script>
+
+</body>
+</html>
